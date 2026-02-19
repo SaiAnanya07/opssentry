@@ -4,11 +4,11 @@ pipeline {
     parameters {
         booleanParam(name: 'TUNE_HYPERPARAMETERS', defaultValue: false, description: 'Enable hyperparameter tuning')
         booleanParam(name: 'SKIP_SMOTE', defaultValue: false, description: 'Skip SMOTE for class imbalance')
-        booleanParam(name: 'DEPLOY_TO_PRODUCTION', defaultValue: false, description: 'Deploy to production')
     }
 
     environment {
         PYTHONIOENCODING = 'utf-8'
+        PYTHON_HOME = 'C:\\Users\\yedit\\AppData\\Local\\Programs\\Python\\Python312'
     }
 
     stages {
@@ -25,11 +25,12 @@ pipeline {
             steps {
                 echo '=== Setting up Python virtual environment ==='
                 dir('opssentry') {
-                    bat 'echo Python path: C:\Users\yedit\AppData\Local\Programs\Python\Python312\python.exe'
-                    bat '"C:\Users\yedit\AppData\Local\Programs\Python\Python312\python.exe" --version'
-                    bat '"C:\Users\yedit\AppData\Local\Programs\Python\Python312\python.exe" -m venv venv'
-                    bat 'venv\\Scripts\\python.exe -m pip install --upgrade pip'
-                    bat 'venv\\Scripts\\pip.exe install -r requirements.txt'
+                    withEnv(['PATH+PYTHON=C:\\Users\\yedit\\AppData\\Local\\Programs\\Python\\Python312;C:\\Users\\yedit\\AppData\\Local\\Programs\\Python\\Python312\\Scripts']) {
+                        bat 'python --version'
+                        bat 'python -m venv venv'
+                        bat 'venv\\Scripts\\python.exe -m pip install --upgrade pip'
+                        bat 'venv\\Scripts\\pip.exe install -r requirements.txt'
+                    }
                 }
             }
         }
@@ -59,7 +60,7 @@ pipeline {
                     script {
                         def tuneFlag = params.TUNE_HYPERPARAMETERS ? '--tune' : ''
                         def smoteFlag = params.SKIP_SMOTE ? '--no-smote' : ''
-                        bat "venv\\Scripts\\python.exe scripts\\train_model.py  "
+                        bat "venv\\Scripts\\python.exe scripts\\train_model.py ${tuneFlag} ${smoteFlag}"
                     }
                 }
             }
@@ -101,7 +102,7 @@ pipeline {
             steps {
                 echo '=== Building Docker image ==='
                 dir('opssentry') {
-                    bat "docker build -t opssentry: . || echo Docker skipped"
+                    bat "docker build -t opssentry:${BUILD_NUMBER} . || echo Docker skipped"
                 }
             }
         }
@@ -113,7 +114,7 @@ pipeline {
             archiveArtifacts artifacts: 'opssentry/models/*.pkl, opssentry/models/*.png, opssentry/data/github/*.csv', allowEmptyArchive: true
         }
         success {
-            echo '=== SUCCESS: OpsSentry pipeline completed successfully! ==='
+            echo '=== SUCCESS: OpsSentry pipeline completed! ==='
         }
         failure {
             echo '=== FAILURE: Check console output for details ==='
