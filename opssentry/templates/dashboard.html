@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OpsSentry - CI/CD Pipeline Failure Prediction</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-content">
+                <h1 class="logo">
+                    <span class="logo-icon">🛡️</span>
+                    OpsSentry
+                </h1>
+                <p class="tagline">AI-Powered CI/CD Pipeline Failure Prediction</p>
+            </div>
+            <div class="header-stats">
+                <div class="stat-card">
+                    <div class="stat-value" id="total-runs">-</div>
+                    <div class="stat-label">Total Runs</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="failure-rate">-</div>
+                    <div class="stat-label">Failure Rate</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="total-alerts">-</div>
+                    <div class="stat-label">Alerts Sent</div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Prediction Section -->
+            <section class="section">
+                <h2 class="section-title">Make Prediction</h2>
+                <div class="prediction-form">
+                    <form id="predict-form">
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label for="pipeline-name">Pipeline Name</label>
+                                <input type="text" id="pipeline-name" name="name" placeholder="CI Pipeline" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="event">Event Type</label>
+                                <select id="event" name="event">
+                                    <option value="push">Push</option>
+                                    <option value="pull_request">Pull Request</option>
+                                    <option value="schedule">Schedule</option>
+                                    <option value="workflow_dispatch">Manual</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="build-duration">Build Duration (seconds)</label>
+                                <input type="number" id="build-duration" name="build_duration" placeholder="450" step="0.1">
+                            </div>
+                            <div class="form-group">
+                                <label for="num-jobs">Number of Jobs</label>
+                                <input type="number" id="num-jobs" name="num_jobs" placeholder="3" min="1">
+                            </div>
+                        </div>
+                        <button type="submit" class="btn btn-primary">Predict Outcome</button>
+                    </form>
+                </div>
+            </section>
+
+            <!-- Prediction Result -->
+            <section class="section" id="result-section" style="display: none;">
+                <h2 class="section-title">Prediction Result</h2>
+                <div id="prediction-result" class="prediction-result"></div>
+            </section>
+
+            <!-- Model Performance -->
+            <section class="section">
+                <h2 class="section-title">Model Performance</h2>
+                <div class="metrics-grid" id="metrics-grid">
+                    <div class="metric-card">
+                        <div class="metric-label">Accuracy</div>
+                        <div class="metric-value" id="metric-accuracy">-</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-label">Precision</div>
+                        <div class="metric-value" id="metric-precision">-</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-label">Recall</div>
+                        <div class="metric-value" id="metric-recall">-</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-label">F1 Score</div>
+                        <div class="metric-value" id="metric-f1">-</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-label">ROC-AUC</div>
+                        <div class="metric-value" id="metric-roc-auc">-</div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Monitored Pipelines -->
+            <section class="section">
+                <h2 class="section-title">Monitored Pipelines</h2>
+                <div id="pipelines-list" class="pipelines-list"></div>
+            </section>
+
+            <!-- Recent Alerts -->
+            <section class="section">
+                <h2 class="section-title">Recent Alerts</h2>
+                <div id="alerts-list" class="alerts-list"></div>
+            </section>
+        </main>
+
+        <!-- Footer -->
+        <footer class="footer">
+            <p>&copy; 2024 OpsSentry. AI-Powered DevOps Intelligence.</p>
+        </footer>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+</body>
+</html>

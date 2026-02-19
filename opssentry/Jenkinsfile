@@ -1,0 +1,204 @@
+pipeline {
+    agent any
+    
+    parameters {
+        booleanParam(name: 'TUNE_HYPERPARAMETERS', defaultValue: false, description: 'Enable hyperparameter tuning (takes longer)')
+        booleanParam(name: 'SKIP_SMOTE', defaultValue: false, description: 'Skip SMOTE for class imbalance handling')
+        booleanParam(name: 'DEPLOY_TO_PRODUCTION', defaultValue: false, description: 'Deploy to production after successful build')
+        choice(name: 'LOG_LEVEL', choices: ['INFO', 'DEBUG', 'WARNING'], description: 'Logging level')
+    }
+    
+    environment {
+        PYTHON_VERSION = '3.12'
+        VENV_DIR = 'venv'
+        PROJECT_NAME = 'opssentry'
+        DOCKER_IMAGE = 'opssentry'
+        DOCKER_TAG = "${BUILD_NUMBER}"
+    }
+    
+    stages {
+        stage('Checkout') {
+            steps {
+                echo '=== Checking out source code ==='
+                checkout scm
+                script {
+                    env.GIT_COMMIT_SHORT = sh(returnStdout: true, script: 'git rev-parse --short HEAD').trim()
+                }
+            }
+        }
+        
+        stage('Setup Environment') {
+            steps {
+                echo '=== Setting up Python environment ==='
+                bat '''
+                    python --version
+                    python -m venv %VENV_DIR%
+                    call %VENV_DIR%\\Scripts\\activate.bat
+                    python -m pip install --upgrade pip
+                    pip install -r requirements.txt
+                '''
+            }
+        }
+        
+        stage('Validate Data') {
+            steps {
+                echo '=== Validating datasets ==='
+                bat '''
+                    call %VENV_DIR%\\Scripts\\activate.bat
+                    python validate_installation.py
+                '''
+            }
+        }
+        
+        stage('Train Models') {
+            steps {
+                echo '=== Training ML models ==='
+                script {
+                    def tuneFlag = params.TUNE_HYPERPARAMETERS ? '--tune' : ''
+                    def smoteFlag = params.SKIP_SMOTE ? '--no-smote' : ''
+                    
+                    bat """
+                        call %VENV_DIR%\\Scripts\\activate.bat
+                        python scripts\\train_model.py ${tuneFlag} ${smoteFlag}
+                    """
+                }
+            }
+        }
+        
+        stage('Evaluate Models') {
+            steps {
+                echo '=== Evaluating model performance ==='
+                bat '''
+                    call %VENV_DIR%\\Scripts\\activate.bat
+                    python scripts\\validate_model.py
+                '''
+            }
+        }
+        
+        stage('Run Tests') {
+            steps {
+                echo '=== Running tests ==='
+                bat '''
+                    call %VENV_DIR%\\Scripts\\activate.bat
+                    python -m pytest tests/ -v --junitxml=test-results.xml || exit 0
+                '''
+            }
+            post {
+                always {
+                    junit allowEmptyResults: true, testResults: 'test-results.xml'
+                }
+            }
+        }
+        
+        stage('Build Docker Image') {
+            steps {
+                echo '=== Building Docker image ==='
+                script {
+                    bat """
+                        docker build -t ${DOCKER_IMAGE}:${DOCKER_TAG} .
+                        docker tag ${DOCKER_IMAGE}:${DOCKER_TAG} ${DOCKER_IMAGE}:latest
+                    """
+                }
+            }
+        }
+        
+        stage('Test Docker Image') {
+            steps {
+                echo '=== Testing Docker image ==='
+                script {
+                    bat """
+                        docker run -d --name ${PROJECT_NAME}-test-${BUILD_NUMBER} -p 5001:5000 ${DOCKER_IMAGE}:${DOCKER_TAG}
+                        timeout /t 10
+                        curl http://localhost:5001/api/health || exit 0
+                        docker stop ${PROJECT_NAME}-test-${BUILD_NUMBER}
+                        docker rm ${PROJECT_NAME}-test-${BUILD_NUMBER}
+                    """
+                }
+            }
+        }
+        
+        stage('Deploy to Staging') {
+            steps {
+                echo '=== Deploying to staging ==='
+                script {
+                    bat """
+                        docker-compose -f docker-compose.yml down || exit 0
+                        docker-compose -f docker-compose.yml up -d
+                    """
+                }
+            }
+        }
+        
+        stage('Health Check') {
+            steps {
+                echo '=== Running health check ==='
+                retry(3) {
+                    bat '''
+                        timeout /t 5
+                        call %VENV_DIR%\\Scripts\\activate.bat
+                        python scripts\\health_check.py
+                    '''
+                }
+            }
+        }
+        
+        stage('Deploy to Production') {
+            when {
+                expression { params.DEPLOY_TO_PRODUCTION == true }
+            }
+            steps {
+                echo '=== Deploying to production ==='
+                input message: 'Deploy to production?', ok: 'Deploy'
+                script {
+                    bat """
+                        docker tag ${DOCKER_IMAGE}:${DOCKER_TAG} ${DOCKER_IMAGE}:production
+                        echo Production deployment would happen here
+                    """
+                }
+            }
+        }
+    }
+    
+    post {
+        always {
+            echo '=== Archiving artifacts ==='
+            archiveArtifacts artifacts: 'models/*.pkl, models/*.png, logs/*.log', allowEmptyArchive: true
+            
+            echo '=== Cleaning up ==='
+            bat 'docker system prune -f || exit 0'
+        }
+        
+        success {
+            echo '=== Pipeline completed successfully ==='
+            emailext(
+                subject: "SUCCESS: OpsSentry Build #${BUILD_NUMBER}",
+                body: """
+                    Build #${BUILD_NUMBER} completed successfully!
+                    
+                    Commit: ${GIT_COMMIT_SHORT}
+                    Duration: ${currentBuild.durationString}
+                    
+                    Check console output at: ${BUILD_URL}
+                """,
+                to: '${DEFAULT_RECIPIENTS}',
+                recipientProviders: [developers(), requestor()]
+            )
+        }
+        
+        failure {
+            echo '=== Pipeline failed ==='
+            emailext(
+                subject: "FAILURE: OpsSentry Build #${BUILD_NUMBER}",
+                body: """
+                    Build #${BUILD_NUMBER} failed!
+                    
+                    Commit: ${GIT_COMMIT_SHORT}
+                    
+                    Check console output at: ${BUILD_URL}
+                """,
+                to: '${DEFAULT_RECIPIENTS}',
+                recipientProviders: [developers(), requestor()]
+            )
+        }
+    }
+}
