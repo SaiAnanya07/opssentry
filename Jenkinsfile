@@ -2,20 +2,13 @@ pipeline {
     agent any
 
     parameters {
-        booleanParam(name: 'TUNE_HYPERPARAMETERS', defaultValue: false, description: 'Enable hyperparameter tuning (takes longer)')
-        booleanParam(name: 'SKIP_SMOTE', defaultValue: false, description: 'Skip SMOTE for class imbalance handling')
-        booleanParam(name: 'DEPLOY_TO_PRODUCTION', defaultValue: false, description: 'Deploy to production after successful build')
-        choice(name: 'LOG_LEVEL', choices: ['INFO', 'DEBUG', 'WARNING'], description: 'Logging level')
+        booleanParam(name: 'TUNE_HYPERPARAMETERS', defaultValue: false, description: 'Enable hyperparameter tuning')
+        booleanParam(name: 'SKIP_SMOTE', defaultValue: false, description: 'Skip SMOTE for class imbalance')
+        booleanParam(name: 'DEPLOY_TO_PRODUCTION', defaultValue: false, description: 'Deploy to production')
     }
 
     environment {
-        PYTHON_VERSION = '3.12'
-        VENV_DIR = 'venv'
-        PROJECT_NAME = 'opssentry'
-        DOCKER_IMAGE = 'opssentry'
-        DOCKER_TAG = "${BUILD_NUMBER}"
         PYTHONIOENCODING = 'utf-8'
-        PYTHONPATH = "${WORKSPACE}\\opssentry"
     }
 
     stages {
@@ -30,39 +23,31 @@ pipeline {
 
         stage('Setup Environment') {
             steps {
-                echo '=== Setting up Python environment ==='
+                echo '=== Setting up Python virtual environment ==='
                 dir('opssentry') {
-                    bat '''
-                        python --version
-                        python -m venv %VENV_DIR%
-                        call %VENV_DIR%\\Scripts\\activate.bat
-                        python -m pip install --upgrade pip
-                        pip install -r requirements.txt
-                    '''
+                    bat 'echo Python path: C:\Users\yedit\AppData\Local\Programs\Python\Python312\python.exe'
+                    bat '"C:\Users\yedit\AppData\Local\Programs\Python\Python312\python.exe" --version'
+                    bat '"C:\Users\yedit\AppData\Local\Programs\Python\Python312\python.exe" -m venv venv'
+                    bat 'venv\\Scripts\\python.exe -m pip install --upgrade pip'
+                    bat 'venv\\Scripts\\pip.exe install -r requirements.txt'
                 }
             }
         }
 
         stage('Collect Real Data') {
             steps {
-                echo '=== Fetching real GitHub Actions run data ==='
+                echo '=== Fetching GitHub Actions run data ==='
                 dir('opssentry') {
-                    bat '''
-                        call %VENV_DIR%\\Scripts\\activate.bat
-                        python scripts\\fetch_runs.py --max-pages 5
-                    '''
+                    bat 'venv\\Scripts\\python.exe scripts\\fetch_runs.py --max-pages 5'
                 }
             }
         }
 
         stage('Preprocess Data') {
             steps {
-                echo '=== Preprocessing collected data ==='
+                echo '=== Preprocessing data ==='
                 dir('opssentry') {
-                    bat '''
-                        call %VENV_DIR%\\Scripts\\activate.bat
-                        python scripts\\preprocess.py --source github || echo Preprocessing done with warnings
-                    '''
+                    bat 'venv\\Scripts\\python.exe scripts\\preprocess.py --source github || echo Done'
                 }
             }
         }
@@ -74,10 +59,7 @@ pipeline {
                     script {
                         def tuneFlag = params.TUNE_HYPERPARAMETERS ? '--tune' : ''
                         def smoteFlag = params.SKIP_SMOTE ? '--no-smote' : ''
-                        bat """
-                            call %VENV_DIR%\\Scripts\\activate.bat
-                            python scripts\\train_model.py ${tuneFlag} ${smoteFlag}
-                        """
+                        bat "venv\\Scripts\\python.exe scripts\\train_model.py  "
                     }
                 }
             }
@@ -87,10 +69,7 @@ pipeline {
             steps {
                 echo '=== Evaluating model performance ==='
                 dir('opssentry') {
-                    bat '''
-                        call %VENV_DIR%\\Scripts\\activate.bat
-                        python scripts\\validate_model.py
-                    '''
+                    bat 'venv\\Scripts\\python.exe scripts\\validate_model.py'
                 }
             }
         }
@@ -99,10 +78,7 @@ pipeline {
             steps {
                 echo '=== Running tests ==='
                 dir('opssentry') {
-                    bat '''
-                        call %VENV_DIR%\\Scripts\\activate.bat
-                        python -m pytest tests/ -v --junitxml=test-results.xml || exit 0
-                    '''
+                    bat 'venv\\Scripts\\python.exe -m pytest tests/ -v --junitxml=test-results.xml || exit 0'
                 }
             }
             post {
@@ -112,16 +88,11 @@ pipeline {
             }
         }
 
-        stage('Start App & Health Check') {
+        stage('Health Check') {
             steps {
-                echo '=== Starting Flask app and running health check ==='
+                echo '=== Running health check ==='
                 dir('opssentry') {
-                    bat '''
-                        call %VENV_DIR%\\Scripts\\activate.bat
-                        start /B python app.py
-                        timeout /t 10 /nobreak
-                        python scripts\\health_check.py || echo Health check attempted
-                    '''
+                    bat 'venv\\Scripts\\python.exe scripts\\health_check.py || echo Health check attempted'
                 }
             }
         }
@@ -130,38 +101,7 @@ pipeline {
             steps {
                 echo '=== Building Docker image ==='
                 dir('opssentry') {
-                    bat """
-                        docker build -t ${DOCKER_IMAGE}:${DOCKER_TAG} . || echo Docker build skipped - Docker may not be available
-                        docker tag ${DOCKER_IMAGE}:${DOCKER_TAG} ${DOCKER_IMAGE}:latest || echo Docker tag skipped
-                    """
-                }
-            }
-        }
-
-        stage('Deploy to Staging') {
-            steps {
-                echo '=== Deploying to staging ==='
-                dir('opssentry') {
-                    bat """
-                        docker-compose -f docker-compose.yml down || echo No existing containers
-                        docker-compose -f docker-compose.yml up -d || echo Docker compose skipped
-                    """
-                }
-            }
-        }
-
-        stage('Deploy to Production') {
-            when {
-                expression { params.DEPLOY_TO_PRODUCTION == true }
-            }
-            steps {
-                echo '=== Deploying to production ==='
-                input message: 'Deploy to production?', ok: 'Deploy'
-                dir('opssentry') {
-                    bat """
-                        docker tag ${DOCKER_IMAGE}:${DOCKER_TAG} ${DOCKER_IMAGE}:production || echo Tag skipped
-                        echo Production deployment complete
-                    """
+                    bat "docker build -t opssentry: . || echo Docker skipped"
                 }
             }
         }
@@ -171,10 +111,9 @@ pipeline {
         always {
             echo '=== Archiving artifacts ==='
             archiveArtifacts artifacts: 'opssentry/models/*.pkl, opssentry/models/*.png, opssentry/data/github/*.csv', allowEmptyArchive: true
-            echo '=== Pipeline finished ==='
         }
         success {
-            echo '=== SUCCESS: OpsSentry pipeline completed! ==='
+            echo '=== SUCCESS: OpsSentry pipeline completed successfully! ==='
         }
         failure {
             echo '=== FAILURE: Check console output for details ==='
