@@ -264,6 +264,12 @@ class ModelTrainer:
             random_state=42
         )
         
+        # GradientBoosting requires at least 2 classes
+        n_classes = len(np.unique(y_train))
+        if n_classes < 2:
+            logger.warning(f"Only {n_classes} class in training data — GradientBoosting requires ≥2 classes. Skipping.")
+            return None
+        
         model.fit(X_train, y_train)
         
         # Evaluate on validation set
@@ -353,6 +359,10 @@ class ModelTrainer:
         self.train_random_forest(X_train, y_train, X_val, y_val, tune_hyperparameters)
         self.train_xgboost(X_train, y_train, X_val, y_val, tune_hyperparameters)
         self.train_gradient_boosting(X_train, y_train, X_val, y_val)
+        
+        if not self.models:
+            logger.warning("No models were trained successfully. Exiting.")
+            return {'best_model': None, 'best_model_name': None, 'test_metrics': {}, 'all_models': {}}
         
         # Compare models
         evaluator = ModelEvaluator()
