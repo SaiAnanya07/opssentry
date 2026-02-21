@@ -121,28 +121,41 @@ class ModelEvaluator:
             output_dir = Path(output_dir)
             output_dir.mkdir(parents=True, exist_ok=True)
             
-            # Confusion matrix
-            cm = confusion_matrix(y_test, y_pred)
+            # Confusion matrix — determine classes that are actually present
+            present_classes = sorted(np.unique(np.concatenate([y_test, y_pred])))
+            class_labels = {0: 'Success', 1: 'Failure'}
+            present_names = [class_labels.get(c, str(c)) for c in present_classes]
+            cm = confusion_matrix(y_test, y_pred, labels=present_classes)
             Visualizer.plot_confusion_matrix(
                 cm,
-                classes=['Success', 'Failure'],
+                classes=present_names,
                 title=f'{model_name} - Confusion Matrix',
                 save_path=output_dir / f'{model_name}_confusion_matrix.png'
             )
             
-            # ROC curve
-            if y_pred_proba is not None:
-                fpr, tpr, _ = roc_curve(y_test, y_pred_proba)
-                Visualizer.plot_roc_curve(
-                    fpr, tpr, metrics['roc_auc'],
-                    title=f'{model_name} - ROC Curve',
-                    save_path=output_dir / f'{model_name}_roc_curve.png'
-                )
+            # ROC curve — only valid when both classes are present
+            if y_pred_proba is not None and len(present_classes) > 1:
+                try:
+                    fpr, tpr, _ = roc_curve(y_test, y_pred_proba)
+                    Visualizer.plot_roc_curve(
+                        fpr, tpr, metrics.get('roc_auc', 0.0),
+                        title=f'{model_name} - ROC Curve',
+                        save_path=output_dir / f'{model_name}_roc_curve.png'
+                    )
+                except Exception as e:
+                    logger.warning(f"Could not plot ROC curve: {e}")
         
-        # Classification report
+        # Classification report — guard against single-class data
         logger.info(f"\n{model_name} Classification Report:")
-        logger.info("\n" + classification_report(y_test, y_pred, 
-                                                 target_names=['Success', 'Failure']))
+        try:
+            present_classes_cr = sorted(np.unique(np.concatenate([y_test, y_pred])))
+            if len(present_classes_cr) > 1:
+                logger.info("\n" + classification_report(y_test, y_pred,
+                                                         target_names=['Success', 'Failure']))
+            else:
+                logger.info("\n" + classification_report(y_test, y_pred))
+        except Exception as e:
+            logger.warning(f"Could not generate classification report: {e}")
         
         return metrics
     
