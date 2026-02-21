@@ -1,4 +1,4 @@
-﻿pipeline {
+pipeline {
     agent any
 
     parameters {
@@ -38,10 +38,8 @@
             steps {
                 echo '=== Fetching GitHub Actions run data ==='
                 dir('opssentry') {
-                    bat '''
-                        set PYTHONPATH=%CD%
-                        venv\\Scripts\\python.exe scripts\\fetch_runs.py --max-pages 5
-                    '''
+                    bat ""set PYTHONPATH=%CD%
+venv\\Scripts\\python.exe scripts\\fetch_runs.py --max-pages 5""
                 }
             }
         }
@@ -50,10 +48,8 @@
             steps {
                 echo '=== Preprocessing data ==='
                 dir('opssentry') {
-                    bat '''
-                        set PYTHONPATH=%CD%
-                        venv\\Scripts\\python.exe scripts\\preprocess.py --source github || echo Done
-                    '''
+                    bat ""set PYTHONPATH=%CD%
+venv\\Scripts\\python.exe scripts\\preprocess.py --source github || echo Done""
                 }
             }
         }
@@ -65,10 +61,7 @@
                     script {
                         def tuneFlag = params.TUNE_HYPERPARAMETERS ? '--tune' : ''
                         def smoteFlag = params.SKIP_SMOTE ? '--no-smote' : ''
-                        bat """
-                            set PYTHONPATH=%CD%
-                            venv\\Scripts\\python.exe scripts\\train_model.py ${tuneFlag} ${smoteFlag}
-                        """
+                        bat "set PYTHONPATH=%CD%\nvenv\\Scripts\\python.exe scripts\\train_model.py ${tuneFlag} ${smoteFlag}"
                     }
                 }
             }
@@ -78,10 +71,8 @@
             steps {
                 echo '=== Evaluating model performance ==='
                 dir('opssentry') {
-                    bat '''
-                        set PYTHONPATH=%CD%
-                        venv\\Scripts\\python.exe scripts\\validate_model.py
-                    '''
+                    bat ""set PYTHONPATH=%CD%
+venv\\Scripts\\python.exe scripts\\validate_model.py""
                 }
             }
         }
@@ -90,10 +81,8 @@
             steps {
                 echo '=== Running tests ==='
                 dir('opssentry') {
-                    bat '''
-                        set PYTHONPATH=%CD%
-                        venv\\Scripts\\python.exe -m pytest tests/ -v --junitxml=test-results.xml || exit 0
-                    '''
+                    bat ""set PYTHONPATH=%CD%
+venv\\Scripts\\python.exe -m pytest tests/ -v --junitxml=test-results.xml || exit 0""
                 }
             }
             post {
@@ -107,10 +96,8 @@
             steps {
                 echo '=== Running health check ==='
                 dir('opssentry') {
-                    bat '''
-                        set PYTHONPATH=%CD%
-                        venv\\Scripts\\python.exe scripts\\health_check.py || echo Health check attempted
-                    '''
+                    bat ""set PYTHONPATH=%CD%
+venv\\Scripts\\python.exe scripts\\health_check.py || echo Health check attempted""
                 }
             }
         }
