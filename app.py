@@ -224,12 +224,12 @@ def get_pipelines():
         
         # Group by pipeline name
         if 'name' in df.columns:
-            pipeline_stats = df.groupby('name').agg({
-                'id': 'count',
-                'conclusion': lambda x: (x == 'failure').sum() / len(x) if len(x) > 0 else 0
-            }).reset_index()
+            pipeline_stats = df.groupby('name').agg(
+                total_runs=('id', 'count'),
+                failure_rate=('conclusion', lambda x: float((x == 'failure').sum() / len(x)) if len(x) > 0 else 0.0)
+            ).reset_index()
             
-            pipeline_stats.columns = ['name', 'total_runs', 'failure_rate']
+            pipeline_stats['total_runs'] = pipeline_stats['total_runs'].astype(int)
             pipelines = pipeline_stats.to_dict('records')
         else:
             pipelines = []
@@ -325,11 +325,13 @@ def get_stats():
         # Load runs metadata
         if config.RUNS_METADATA_CSV.exists():
             df = pd.read_csv(config.RUNS_METADATA_CSV)
-            stats['total_runs'] = len(df)
+            total_runs = int(len(df))
+            stats['total_runs'] = total_runs
             
             if 'conclusion' in df.columns:
-                stats['total_failures'] = (df['conclusion'] == 'failure').sum()
-                stats['overall_failure_rate'] = stats['total_failures'] / stats['total_runs'] if stats['total_runs'] > 0 else 0
+                total_failures = int((df['conclusion'] == 'failure').sum())
+                stats['total_failures'] = total_failures
+                stats['overall_failure_rate'] = float(total_failures / total_runs) if total_runs > 0 else 0.0
         
         return jsonify(stats)
     
