@@ -35,16 +35,16 @@ pipeline {
         stage('Collect Real Data') {
             steps {
                 echo '=== Fetching GitHub Actions run data ==='
-                bat ""set PYTHONPATH=%CD%
-venv\\Scripts\\python.exe scripts\\fetch_runs.py --max-pages 5""
+                bat '''set PYTHONPATH=%CD%
+venv\\Scripts\\python.exe scripts\\fetch_runs.py --max-pages 5'''
             }
         }
 
         stage('Preprocess Data') {
             steps {
                 echo '=== Preprocessing data ==='
-                bat ""set PYTHONPATH=%CD%
-venv\\Scripts\\python.exe scripts\\preprocess.py --source github || echo Done""
+                bat '''set PYTHONPATH=%CD%
+venv\\Scripts\\python.exe scripts\\preprocess.py --source github || echo Done'''
             }
         }
 
@@ -54,7 +54,7 @@ venv\\Scripts\\python.exe scripts\\preprocess.py --source github || echo Done""
                 script {
                     def tuneFlag = params.TUNE_HYPERPARAMETERS ? '--tune' : ''
                     def smoteFlag = params.SKIP_SMOTE ? '--no-smote' : ''
-                    bat "set PYTHONPATH=%CD%\nvenv\\Scripts\\python.exe scripts\\train_model.py ${tuneFlag} ${smoteFlag}"
+                    bat "set PYTHONPATH=%CD%\r\nvenv\\\\Scripts\\\\python.exe scripts\\\\train_model.py ${tuneFlag} ${smoteFlag}"
                 }
             }
         }
@@ -62,16 +62,16 @@ venv\\Scripts\\python.exe scripts\\preprocess.py --source github || echo Done""
         stage('Evaluate Models') {
             steps {
                 echo '=== Evaluating model performance ==='
-                bat ""set PYTHONPATH=%CD%
-venv\\Scripts\\python.exe scripts\\validate_model.py""
+                bat '''set PYTHONPATH=%CD%
+venv\\Scripts\\python.exe scripts\\validate_model.py'''
             }
         }
 
         stage('Run Tests') {
             steps {
                 echo '=== Running tests ==='
-                bat ""set PYTHONPATH=%CD%
-venv\\Scripts\\python.exe -m pytest tests/ -v --junitxml=test-results.xml || exit 0""
+                bat '''set PYTHONPATH=%CD%
+venv\\Scripts\\python.exe -m pytest tests/ -v --junitxml=test-results.xml || exit 0'''
             }
             post {
                 always {
@@ -83,8 +83,8 @@ venv\\Scripts\\python.exe -m pytest tests/ -v --junitxml=test-results.xml || exi
         stage('Health Check') {
             steps {
                 echo '=== Running health check ==='
-                bat ""set PYTHONPATH=%CD%
-venv\\Scripts\\python.exe scripts\\health_check.py || echo Health check attempted""
+                bat '''set PYTHONPATH=%CD%
+venv\\Scripts\\python.exe scripts\\health_check.py || echo Health check attempted'''
             }
         }
 
