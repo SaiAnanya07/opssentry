@@ -1,0 +1,17 @@
+__pycache__/
+*.pyc
+*.pyo
+venv/
+.env
+*.log
+logs/
+data/github/
+models/*.pkl
+models/*.png
+restructure.log
+jenkins_build*.txt
+.vscode/
+.idea/
+*.egg-info/
+dist/
+build/
