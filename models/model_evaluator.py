@@ -185,6 +185,9 @@ class ModelEvaluator:
         logger.info("=" * 60)
         
         for metric in df.columns:
+            if df[metric].isna().all():
+                logger.warning(f"Metric '{metric}' is NaN for all models, skipping best-model comparison for this metric.")
+                continue
             best_model = df[metric].idxmax()
             best_value = df[metric].max()
             logger.info(f"{metric.upper():15s}: {best_model} ({best_value:.4f})")
