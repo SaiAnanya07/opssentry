@@ -1,6 +1,8 @@
 """
 Visualization Utilities for OpsSentry
 """
+import matplotlib
+matplotlib.use('Agg')  # Non-interactive backend for headless environments (Jenkins/CI)
 import matplotlib.pyplot as plt
 import seaborn as sns
 import numpy as np
@@ -44,7 +46,6 @@ class Visualizer:
         if save_path:
             plt.savefig(save_path, dpi=config.DPI, bbox_inches='tight')
         
-        plt.show()
     
     @staticmethod
     def plot_roc_curve(fpr: np.ndarray, 
@@ -78,7 +79,6 @@ class Visualizer:
         if save_path:
             plt.savefig(save_path, dpi=config.DPI, bbox_inches='tight')
         
-        plt.show()
     
     @staticmethod
     def plot_feature_importance(feature_names: List[str], 
@@ -114,7 +114,6 @@ class Visualizer:
         if save_path:
             plt.savefig(save_path, dpi=config.DPI, bbox_inches='tight')
         
-        plt.show()
     
     @staticmethod
     def plot_metrics_comparison(metrics_dict: Dict[str, Dict[str, float]],
@@ -144,7 +143,6 @@ class Visualizer:
         if save_path:
             plt.savefig(save_path, dpi=config.DPI, bbox_inches='tight')
         
-        plt.show()
     
     @staticmethod
     def plot_training_history(history: Dict[str, List[float]],
@@ -188,7 +186,6 @@ class Visualizer:
         if save_path:
             plt.savefig(save_path, dpi=config.DPI, bbox_inches='tight')
         
-        plt.show()
     
     @staticmethod
     def plot_data_distribution(df: pd.DataFrame, 
@@ -229,4 +226,3 @@ class Visualizer:
         if save_path:
             plt.savefig(save_path, dpi=config.DPI, bbox_inches='tight')
         
-        plt.show()
